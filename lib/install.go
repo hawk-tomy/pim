@@ -1,6 +1,7 @@
+/*
 MIT License
 
-Copyright (c) 2023 - present hawk-tomy
+# Copyright (c) 2023 - present hawk-tomy
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -19,3 +20,23 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+*/
+
+package lib
+
+import "fmt"
+
+func GetLatestVersion(config Config, version Version) (Version, error) {
+	if err := fetchLatestVersions(config); err != nil {
+		return Version{}, err
+	}
+	minor := version.Minor
+	if latestVersion, ok := latestVersions[minor]; ok {
+		return latestVersion, nil
+	}
+	return Version{}, fmt.Errorf("not found latest version: %s", version.String())
+}
+
+func InstallPython(config Config, version Version) error {
+	return doInstall(config, version)
+}

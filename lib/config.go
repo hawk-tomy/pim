@@ -1,6 +1,7 @@
+/*
 MIT License
 
-Copyright (c) 2023 - present hawk-tomy
+# Copyright (c) 2023 - present hawk-tomy
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -19,3 +20,45 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+*/
+package lib
+
+import (
+	"os"
+	"path/filepath"
+
+	"github.com/spf13/cobra"
+)
+
+type Config struct {
+	AllowPreRelease            bool
+	ForAllUser                 bool
+	TargetDirectory            string
+	AdditionalInstallerOptions map[string]string
+}
+
+var (
+	configDir  string
+	ConfigPath string
+)
+
+func init() {
+	home, err := os.UserHomeDir()
+	cobra.CheckErr(err)
+
+	configDir = filepath.Join(home, ".config", "python_install_manager")
+	if _, err := os.Stat(configDir); os.IsNotExist(err) {
+		err := os.MkdirAll(configDir, 0755)
+		cobra.CheckErr(err)
+	}
+
+	ConfigPath = filepath.Join(configDir, "config.toml")
+	if _, err := os.Stat(ConfigPath); os.IsNotExist(err) {
+		f, err := os.Create(ConfigPath)
+		cobra.CheckErr(err)
+		defer f.Close()
+
+		_, err = f.WriteString("")
+		cobra.CheckErr(err)
+	}
+}
