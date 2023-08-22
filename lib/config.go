@@ -46,7 +46,7 @@ func init() {
 	home, err := os.UserHomeDir()
 	cobra.CheckErr(err)
 
-	configDir = filepath.Join(home, ".config", "python_install_manager")
+	configDir = filepath.Join(home, ".config", "pim")
 	if _, err := os.Stat(configDir); os.IsNotExist(err) {
 		err := os.MkdirAll(configDir, 0755)
 		cobra.CheckErr(err)

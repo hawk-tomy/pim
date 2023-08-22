@@ -47,7 +47,7 @@ func init() {
 	home, err := os.UserHomeDir()
 	cobra.CheckErr(err)
 
-	cacheDir = filepath.Join(home, ".cache", "python_install_manager")
+	cacheDir = filepath.Join(home, ".cache", "pim")
 	if _, err := os.Stat(cacheDir); os.IsNotExist(err) {
 		err := os.MkdirAll(cacheDir, 0755)
 		cobra.CheckErr(err)

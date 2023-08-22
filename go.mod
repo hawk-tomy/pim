@@ -1,4 +1,4 @@
-module github.com/hawk-tomy/python_install_manager
+module github.com/hawk-tomy/pim
 
 go 1.21.0
 

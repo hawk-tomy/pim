@@ -23,7 +23,7 @@ SOFTWARE.
 */
 package main
 
-import "github.com/hawk-tomy/python_install_manager/cmd"
+import "github.com/hawk-tomy/pim/cmd"
 
 func main() {
 	cmd.Execute()

@@ -26,7 +26,7 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/hawk-tomy/python_install_manager/lib"
+	"github.com/hawk-tomy/pim/lib"
 	"github.com/spf13/cobra"
 )
 

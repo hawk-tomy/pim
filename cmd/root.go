@@ -26,7 +26,7 @@ package cmd
 import (
 	"os"
 
-	"github.com/hawk-tomy/python_install_manager/lib"
+	"github.com/hawk-tomy/pim/lib"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -37,7 +37,7 @@ var (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "python_install_manager",
+	Use:   "pim",
 	Short: "Install/Update python.",
 	Long: `Install/Update python.
 
@@ -59,7 +59,7 @@ func Execute() {
 func init() {
 	cobra.OnInitialize(initConfig)
 
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.config/python_install_manager/config.toml)")
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.config/pim/config.toml)")
 
 	rootCmd.PersistentFlags().BoolP("pre-release", "p", false, "allow pre-release lib")
 	viper.BindPFlag("AllowPreRelease", rootCmd.PersistentFlags().Lookup("pre-release"))
