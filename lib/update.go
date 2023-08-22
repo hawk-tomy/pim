@@ -37,12 +37,17 @@ func UpdateLatest(config Config, version Version) error {
 	if latestVersion, ok := updatablePythonVersions[minor]; ok {
 		return doUpdate(config, latestVersion)
 	}
-	return fmt.Errorf("This version is already latest version.")
+	return fmt.Errorf("this version is already latest version")
 }
 
 func UpdateAll(config Config) error {
 	if err := detectUpdatablePythonVersions(config); err != nil {
 		return err
+	}
+
+	if len(updatablePythonVersions) == 0 {
+		fmt.Println("There is no updatable python.")
+		return nil
 	}
 
 	minorVersions := make([]int, 0, len(updatablePythonVersions))
