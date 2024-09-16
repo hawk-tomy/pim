@@ -21,39 +21,36 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
+
 package lib
 
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/hawk-tomy/pim/lib/list"
 	"io"
+	"log"
 	"net/http"
+	"sort"
 	"strings"
 )
 
 const (
-	BASE_URL                     = "https://api.github.com/repos/python/cpython/tags?per_page=100&page=%d"
+	BaseUrl                      = "https://api.github.com/repos/python/cpython/tags?per_page=100&page=%d"
 	supportedMinimumMinorVersion = 9
 )
 
 var (
-	finalBinaryRelease    map[int]Version
-	latestVersions        map[int]Version
-	latestVersionsWithPre map[int]Version
-
-	fetchedLatestVersions bool
-	maxMinor              int
+	allVersions           []Version
+	fetchedVersions       map[int]*list.List[Version]
+	failedMinimumVersions map[int]Version
+	fetchedLatestVersions bool // guard against fetching more than once.
 )
 
 func init() {
-	finalBinaryRelease = make(map[int]Version)
-	finalBinaryRelease[9] = Version{Major: 3, Minor: 9, Micro: 13, Pre: 0, PreNum: 0}
-	finalBinaryRelease[10] = Version{Major: 3, Minor: 10, Micro: 11, Pre: 0, PreNum: 0}
-
-	latestVersions = make(map[int]Version)
-	latestVersionsWithPre = make(map[int]Version)
+	fetchedVersions = make(map[int]*list.List[Version])
+	failedMinimumVersions = make(map[int]Version)
 	fetchedLatestVersions = false
-	maxMinor = -1
 }
 
 type Tag struct {
@@ -67,14 +64,8 @@ type Tag struct {
 	NodeId     string `json:"node_id"`
 }
 
-func updateMaxMinor(vs map[int]Version) {
-	for _, v := range vs {
-		maxMinor = max(maxMinor, v.Minor)
-	}
-}
-
 func getVersionsByPage(config Config, page int) ([]Version, error) {
-	url := fmt.Sprintf(BASE_URL, page)
+	url := fmt.Sprintf(BaseUrl, page)
 
 	req, _ := http.NewRequest("GET", url, nil)
 	req.Header.Set("accept", "application/vnd.github+json")
@@ -85,7 +76,7 @@ func getVersionsByPage(config Config, page int) ([]Version, error) {
 		return nil, err
 	}
 
-	defer resp.Body.Close()
+	defer deferErrCheck(resp.Body.Close)
 	if resp.StatusCode != 200 {
 		return nil, fmt.Errorf("failed call API")
 	}
@@ -117,51 +108,64 @@ func getVersionsByPage(config Config, page int) ([]Version, error) {
 	return versions, nil
 }
 
-func filterLatestVersion(config Config) {
-	for k, v := range latestVersionsWithPre {
-		if k < supportedMinimumMinorVersion {
-			continue
-		}
-
-		if config.AllowPreRelease || v.Pre == 0 {
-			latestVersions[k] = v
-		}
-	}
-}
-
 func innerFetchLatestVersions(config Config) error {
 	i := 1
+	fetchedVersions_ := make([]Version, 0)
+	isFetched := make(map[int]bool)
+	maxMinor := -1
+
 	for {
 		versions, err := getVersionsByPage(config, i)
 		if err != nil {
 			return err
 		}
 
-		for _, ver := range versions {
-			if v, ok := finalBinaryRelease[ver.Minor]; ok && v.LessThan(&ver) {
-				continue
-			}
+		fetchedVersions_ = append(fetchedVersions_, versions...)
 
-			if v, ok := latestVersionsWithPre[ver.Minor]; !ok || v.LessThan(&ver) {
-				latestVersionsWithPre[ver.Minor] = ver
-			}
-		}
-
+		// check if all minor versions from supportedMinimumMinorVersion to latestMinorVersion are fetched.
 		// GitHub API return tags sorted by name.
-		updateMaxMinor(latestVersionsWithPre)
+		for _, v := range versions {
+			isFetched[v.Minor] = true
+			maxMinor = max(maxMinor, v.Minor)
+		}
 		flag := false
-		for i := supportedMinimumMinorVersion; i <= maxMinor; i++ {
-			if _, ok := latestVersionsWithPre[i]; !ok {
+		for i := supportedMinimumMinorVersion - 1; i <= maxMinor; i++ {
+			if _, ok := isFetched[i]; !ok {
 				flag = true
 			}
 		}
-		if !flag {
+		if !flag { // ok
 			break
 		}
+
+		// read next page
 		i++
 	}
 
+	saveVersions(fetchedVersions_)
 	return nil
+}
+
+func saveVersions(versions []Version) {
+	sort.Slice(versions, func(i, j int) bool { return versions[i].LessThan(versions[j]) })
+	allVersions = versions
+	fetchVersionsEachMinor := make(map[int][]Version)
+	for _, v := range versions {
+		if _, ok := fetchVersionsEachMinor[v.Minor]; !ok {
+			fetchVersionsEachMinor[v.Minor] = make([]Version, 0)
+		}
+		fetchVersionsEachMinor[v.Minor] = append(fetchVersionsEachMinor[v.Minor], v)
+	}
+	for k, v := range fetchVersionsEachMinor {
+		if k < supportedMinimumMinorVersion {
+			continue
+		}
+		versionList := list.New[Version]()
+		for _, ver := range v {
+			versionList.PushBack(ver)
+		}
+		fetchedVersions[k] = versionList
+	}
 }
 
 func fetchLatestVersions(config Config) error {
@@ -169,8 +173,7 @@ func fetchLatestVersions(config Config) error {
 		return nil
 	}
 
-	need, err := readCache()
-	if need {
+	if need, err := readCache(); need { // if "need" is true, do not use cache. otherwise, not error.
 		if err := innerFetchLatestVersions(config); err != nil {
 			return err
 		}
@@ -178,9 +181,10 @@ func fetchLatestVersions(config Config) error {
 		if err := saveCache(); err != nil {
 			return err
 		}
+	} else if err != nil {
+		log.Fatal(err) // UNREACHABLE
 	}
 
-	filterLatestVersion(config)
 	fetchedLatestVersions = true
-	return err
+	return nil
 }

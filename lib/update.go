@@ -58,7 +58,11 @@ func UpdateAll(config Config) error {
 
 	fmt.Printf("update versions are:\n")
 	for _, minor := range minorVersions {
-		fmt.Printf("%s\n", updatablePythonVersions[minor].String())
+		var verStr string
+		if v, ok := installedPythonVersions[minor]; ok {
+			verStr = v.String()
+		}
+		fmt.Printf("%s -> %s\n", verStr, updatablePythonVersions[minor].Value.String())
 	}
 
 	if !Confirm("Do you want to update all updatable python? [Y/n]") {
@@ -67,9 +71,10 @@ func UpdateAll(config Config) error {
 
 	fmt.Println("start updating...")
 	for _, minor := range minorVersions {
-		fmt.Printf("updating python %s\n", updatablePythonVersions[minor].String())
-		if err := doUpdate(config, updatablePythonVersions[minor]); err != nil {
-			fmt.Printf("an error occurred while updating python %s: %s\n", updatablePythonVersions[minor].String(), err.Error())
+		ver := updatablePythonVersions[minor]
+		fmt.Printf("updating python %s\n", ver.Value.String())
+		if err := doUpdate(config, ver); err != nil {
+			fmt.Printf("an error occurred while updating python %s: %s\n", ver.Value.String(), err.Error())
 		}
 	}
 

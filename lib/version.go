@@ -21,6 +21,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
+
 package lib
 
 import (
@@ -109,7 +110,7 @@ func NewVersion(versionString string) (Version, error) {
 	return v, nil
 }
 
-func (v Version) Compare(o *Version) int {
+func (v Version) Compare(o Version) int {
 	if v.Major > o.Major {
 		return 1
 	} else if v.Major < o.Major {
@@ -143,23 +144,28 @@ func (v Version) Compare(o *Version) int {
 	return 0
 }
 
-func (v Version) Equal(o *Version) bool {
+// Equal v == o
+func (v Version) Equal(o Version) bool {
 	return v.Compare(o) == 0
 }
 
-func (v Version) LessThan(o *Version) bool {
+// LessThan v < o
+func (v Version) LessThan(o Version) bool {
 	return v.Compare(o) == -1
 }
 
-func (v Version) LessThanOrEqual(o *Version) bool {
+// LessThanOrEqual v <= o
+func (v Version) LessThanOrEqual(o Version) bool {
 	return v.Compare(o) <= 0
 }
 
-func (v Version) GreaterThan(o *Version) bool {
+// GreaterThan v > o
+func (v Version) GreaterThan(o Version) bool {
 	return v.Compare(o) == 1
 }
 
-func (v Version) GreaterThanOrEqual(o *Version) bool {
+// GreaterThanOrEqual v >= o
+func (v Version) GreaterThanOrEqual(o Version) bool {
 	return v.Compare(o) >= 0
 }
 
@@ -188,6 +194,7 @@ func (v Version) String() string {
 	return v.getFullString()
 }
 
+// Count return:
 // if ?.0.0 -> 1
 // if ?.?.0 -> 2
 // if ?.?.? -> 3
@@ -214,7 +221,7 @@ func (v *Version) Set(val string) error {
 	return err
 }
 
-func (v *Version) Type() string {
+func (v Version) Type() string {
 	return "version"
 }
 
@@ -239,3 +246,5 @@ func PrintVersionMap(vm map[int]Version) {
 		fmt.Printf("%d: %+v\n", k, v)
 	}
 }
+
+var _ fmt.Stringer = Version{0, 0, 0, 0, 0}

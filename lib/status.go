@@ -21,16 +21,18 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
+
 package lib
 
 import (
 	"fmt"
+	"github.com/hawk-tomy/pim/lib/list"
 	"sort"
 )
 
 var (
 	installedPythonVersions map[int]Version
-	updatablePythonVersions map[int]Version
+	updatablePythonVersions map[int]*list.Element[Version]
 )
 
 func getInstalledPythonVersions(config Config) error {
@@ -50,11 +52,26 @@ func detectUpdatablePythonVersions(config Config) error {
 		return err
 	}
 
-	updatablePythonVersions = make(map[int]Version)
+	updatablePythonVersions = make(map[int]*list.Element[Version])
 	for _, installedVersion := range installedPythonVersions {
 		// same minor version and installed version is old version
-		if v, ok := latestVersions[installedVersion.Minor]; ok && v.GreaterThan(&installedVersion) {
-			updatablePythonVersions[installedVersion.Minor] = v
+		if v, ok := fetchedVersions[installedVersion.Minor]; ok {
+			ver := v.Back()
+			for ver != nil {
+				if ver.Value.LessThanOrEqual(installedVersion) {
+					ver = nil
+					break
+				}
+				if v_, ok_ := failedMinimumVersions[installedVersion.Minor]; ok_ && v_.LessThanOrEqual(ver.Value) {
+					ver = ver.Prev()
+					continue // can not update.
+				}
+				break
+			}
+			if ver == nil {
+				continue
+			}
+			updatablePythonVersions[installedVersion.Minor] = ver
 		}
 	}
 
@@ -77,7 +94,7 @@ func StatusCommand(config Config) error {
 		v := installedPythonVersions[minor]
 		statusStr := v.String()
 		if ver, ok := updatablePythonVersions[minor]; ok {
-			statusStr += fmt.Sprintf(" (updatable: %s)", ver.String())
+			statusStr += fmt.Sprintf(" (updatable: %s)", ver.Value.String())
 		}
 		fmt.Println(statusStr)
 	}

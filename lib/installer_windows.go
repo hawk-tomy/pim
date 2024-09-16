@@ -27,7 +27,9 @@ SOFTWARE.
 package lib
 
 import (
+	"errors"
 	"fmt"
+	"github.com/hawk-tomy/pim/lib/list"
 	"io"
 	"net/http"
 	"os"
@@ -57,6 +59,12 @@ var (
 	installerCacheDir string
 )
 
+type StatusError struct {
+	Status int
+}
+
+func (e *StatusError) Error() string { return fmt.Sprintf("Bad Status: %d", e.Status) }
+
 func init() {
 	installerCacheDir = filepath.Join(cacheDir, "installer")
 	if _, err := os.Stat(installerCacheDir); os.IsNotExist(err) {
@@ -84,13 +92,20 @@ func downloadInstaller(version Version) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		if v, ok := failedMinimumVersions[version.Minor]; !ok || v.GreaterThan(version) {
+			failedMinimumVersions[version.Minor] = version
+			cobra.CheckErr(saveCache())
+		}
+		return "", &StatusError{resp.StatusCode}
+	}
+	defer deferErrCheck(resp.Body.Close)
 
 	out, err := os.Create(filePath)
 	if err != nil {
 		return "", err
 	}
-	defer out.Close()
+	defer deferErrCheck(out.Close)
 
 	_, err = io.Copy(out, resp.Body)
 	return filePath, err
@@ -133,24 +148,54 @@ func callInstaller(path string, args ...string) error {
 	var stderr strings.Builder
 	cmd.Stderr = &stderr
 
-	err := cmd.Run()
-	if err != nil {
+	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed to call installer: %w\nstdout: %s\nstderr: %s", err, stdout.String(), stderr.String())
 	}
 	return nil
 }
 
-func doInstall(config Config, version Version) error {
-	path, err := downloadInstaller(version)
-	if err != nil {
+func doInstall(config Config, version *list.Element[Version], needLatest bool) error {
+	var path string
+	var err error
+	for {
+		path, err = downloadInstaller(version.Value)
+		if err == nil {
+			break
+		}
+		var sErr *StatusError
+		if needLatest && errors.As(err, &sErr) {
+			version = version.Prev()
+			if version == nil {
+				return errors.New("can not found installable version")
+			}
+			continue
+		}
 		return err
 	}
 	return callInstaller(path, buildInstallerArgument(config)...)
 }
 
-func doUpdate(config Config, version Version) error {
-	path, err := downloadInstaller(version)
-	if err != nil {
+func doUpdate(config Config, version *list.Element[Version]) error {
+	var path string
+	var err error
+	for {
+		path, err = downloadInstaller(version.Value)
+		if err == nil {
+			break
+		}
+		var sErr *StatusError
+		if errors.As(err, &sErr) {
+			version = version.Prev()
+			if version == nil {
+				return errors.New("can not found installable version. (not found installable version in checked version)")
+			}
+			if v, ok := installedPythonVersions[version.Value.Minor]; !ok || v.GreaterThanOrEqual(version.Value) {
+				// not ok -> UNREACHABLE (check for assert) -> return error
+				// v >= version -> prev version is same as or older than already installed version.
+				return errors.New("can not found installable version. (not found installable version for newer then installed one.)")
+			}
+			continue
+		}
 		return err
 	}
 	return callInstaller(path, buildInstallerArgument(config)...)

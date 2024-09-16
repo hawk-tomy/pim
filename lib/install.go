@@ -24,19 +24,35 @@ SOFTWARE.
 
 package lib
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
 
-func GetLatestVersion(config Config, version Version) (Version, error) {
+func InstallPython(config Config, version Version, needLatest bool) error {
 	if err := fetchLatestVersions(config); err != nil {
-		return Version{}, err
+		return err
 	}
-	minor := version.Minor
-	if latestVersion, ok := latestVersions[minor]; ok {
-		return latestVersion, nil
-	}
-	return Version{}, fmt.Errorf("not found latest version: %s", version.String())
-}
 
-func InstallPython(config Config, version Version) error {
-	return doInstall(config, version)
+	if needLatest {
+		v := fetchedVersions[version.Minor].Back()
+		for v != nil {
+			if config.AllowPreRelease || v.Value.Pre == 0 {
+				return doInstall(config, v, needLatest)
+			}
+			v = v.Prev()
+		}
+		return fmt.Errorf("not found latest version")
+	}
+
+	if versions, ok := fetchedVersions[version.Minor]; ok {
+		v := versions.Front()
+		for v != nil {
+			if v.Value.Equal(version) {
+				return doInstall(config, v, needLatest)
+			}
+			v = v.Next()
+		}
+	}
+	return errors.New("the version is not found")
 }

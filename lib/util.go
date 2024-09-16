@@ -21,11 +21,13 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
+
 package lib
 
 import (
 	"bufio"
 	"fmt"
+	"github.com/spf13/cobra"
 	"os"
 	"strings"
 )
@@ -58,4 +60,10 @@ func YesOrNo(f bool) string {
 		return "yes"
 	}
 	return "not"
+}
+
+func deferErrCheck(fun func() error) {
+	if err := fun(); err != nil {
+		cobra.CheckErr(err)
+	}
 }

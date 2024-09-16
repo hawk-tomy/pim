@@ -21,21 +21,22 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
+
 package lib
 
 import (
 	"encoding/json"
+	"github.com/spf13/cobra"
 	"io"
 	"os"
 	"path/filepath"
 	"time"
-
-	"github.com/spf13/cobra"
 )
 
 type VersionCache struct {
-	Versions   []Version `json:"versions"`
-	UpdateDate time.Time `json:"update_date"`
+	UpdateDate            time.Time       `json:"update_date"`
+	AllVersions           []Version       `json:"versions"`
+	FailedMinimumVersions map[int]Version `json:"failed_minimum_versions"`
 }
 
 var (
@@ -62,7 +63,7 @@ func readCache() (bool, error) {
 	if err != nil {
 		return true, err
 	}
-	defer cacheFile.Close()
+	defer deferErrCheck(cacheFile.Close)
 
 	byteValue, err := io.ReadAll(cacheFile)
 	if err != nil {
@@ -75,13 +76,17 @@ func readCache() (bool, error) {
 		return true, err
 	}
 
+	// always use cache. maybe add key-value pair, but do not change in cached.
+	if v := cache.FailedMinimumVersions; v != nil {
+		failedMinimumVersions = v
+	}
+
 	if time.Now().Compare(cache.UpdateDate.Add(time.Hour*24)) > 0 {
 		return true, nil
 	}
 
-	for _, v := range cache.Versions {
-		latestVersionsWithPre[v.Minor] = v
-	}
+	saveVersions(cache.AllVersions)
+
 	return false, nil
 }
 
@@ -90,24 +95,20 @@ func saveCache() error {
 	if err != nil {
 		return err
 	}
-	defer cacheFile.Close()
-
-	versions := make([]Version, 0, len(latestVersionsWithPre))
-	for _, v := range latestVersionsWithPre {
-		versions = append(versions, v)
-	}
+	defer deferErrCheck(cacheFile.Close)
 
 	cache := VersionCache{
-		Versions:   versions,
-		UpdateDate: time.Now().UTC(),
+		UpdateDate:            time.Now().UTC(),
+		AllVersions:           allVersions,
+		FailedMinimumVersions: failedMinimumVersions,
 	}
 
 	byteValue, err := json.Marshal(cache)
 	if err != nil {
 		return err
 	}
-	_, err = cacheFile.Write(byteValue)
 
+	_, err = cacheFile.Write(byteValue)
 	return err
 }
 

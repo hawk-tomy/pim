@@ -21,9 +21,11 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
+
 package cmd
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/hawk-tomy/pim/lib"
@@ -48,13 +50,9 @@ var (
 				return err
 			}
 
-			if need, err := cmd.Flags().GetBool("latest"); err != nil {
+			needLatest, err := cmd.Flags().GetBool("latest")
+			if err != nil {
 				return err
-			} else if need {
-				version, err = lib.GetLatestVersion(config, version)
-				if err != nil {
-					return err
-				}
 			}
 
 			fmt.Printf("install options\n")
@@ -70,7 +68,16 @@ var (
 
 			if lib.Confirm("continue? [Y/n]: ") {
 				fmt.Printf("installing...\n")
-				return lib.InstallPython(config, version)
+				err = lib.InstallPython(config, version, needLatest)
+				if err != nil {
+					var sErr *lib.StatusError
+					if errors.As(err, &sErr) {
+						fmt.Printf("failed to download installer. version: %s, status: %d\n", version.String(), sErr.Status)
+						return nil
+					}
+					return err
+				}
+
 			} else {
 				fmt.Println("canceled.")
 			}

@@ -21,6 +21,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
+
 package cmd
 
 import (
@@ -38,9 +39,11 @@ var updateCmd = &cobra.Command{
 
 	Args: cobra.MaximumNArgs(1),
 
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		isAllVer, err := cmd.Flags().GetBool("all")
-		cobra.CheckErr(err)
+		if err != nil {
+			return err
+		}
 		if !isAllVer {
 			if len(args) != 1 {
 				fmt.Println("accept only 1 argument.")
@@ -52,11 +55,13 @@ var updateCmd = &cobra.Command{
 		}
 
 		if isAllVer {
-			lib.UpdateAll(config)
+			return lib.UpdateAll(config)
 		} else {
 			version, err := lib.NewVersion(args[0])
-			cobra.CheckErr(err)
-			lib.UpdateLatest(config, version)
+			if err != nil {
+				return err
+			}
+			return lib.UpdateLatest(config, version)
 		}
 
 	},

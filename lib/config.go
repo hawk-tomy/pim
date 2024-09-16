@@ -21,13 +21,13 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
+
 package lib
 
 import (
+	"github.com/spf13/cobra"
 	"os"
 	"path/filepath"
-
-	"github.com/spf13/cobra"
 )
 
 type Config struct {
@@ -48,17 +48,18 @@ func init() {
 
 	configDir = filepath.Join(home, ".config", "pim")
 	if _, err := os.Stat(configDir); os.IsNotExist(err) {
-		err := os.MkdirAll(configDir, 0755)
-		cobra.CheckErr(err)
+		cobra.CheckErr(os.MkdirAll(configDir, 0755))
 	}
 
 	ConfigPath = filepath.Join(configDir, "config.toml")
 	if _, err := os.Stat(ConfigPath); os.IsNotExist(err) {
 		f, err := os.Create(ConfigPath)
 		cobra.CheckErr(err)
-		defer f.Close()
+		defer deferErrCheck(f.Close)
 
 		_, err = f.WriteString("")
+		cobra.CheckErr(err)
+	} else {
 		cobra.CheckErr(err)
 	}
 }
