@@ -56,13 +56,19 @@ func detectUpdatablePythonVersions(config Config) error {
 	for _, installedVersion := range installedPythonVersions {
 		// same minor version and installed version is old version
 		if v, ok := fetchedVersions[installedVersion.Minor]; ok {
+			var v_ *Version
+			if v__, ok_ := failedMinimumVersions[installedVersion.Minor]; ok_ {
+				v_ = &v__
+			} else {
+				v_ = nil
+			}
 			ver := v.Back()
 			for ver != nil {
 				if ver.Value.LessThanOrEqual(installedVersion) {
 					ver = nil
 					break
 				}
-				if v_, ok_ := failedMinimumVersions[installedVersion.Minor]; ok_ && v_.LessThanOrEqual(ver.Value) {
+				if v_ != nil && v_.LessThanOrEqual(ver.Value) {
 					ver = ver.Prev()
 					continue // can not update.
 				}

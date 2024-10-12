@@ -55,8 +55,13 @@ var (
 				return err
 			}
 
+			versionInfo := version.String()
+			if needLatest {
+				versionInfo = fmt.Sprintf("%d.%d.x (detect latest)", version.Major, version.Minor)
+			}
+
 			fmt.Printf("install options\n")
-			fmt.Printf("  version: %s\n", version.String())
+			fmt.Printf("  version: %s\n", versionInfo)
 			fmt.Printf("  for all user: %s\n", lib.YesOrNo(config.ForAllUser))
 			if config.TargetDirectory != "" {
 				fmt.Printf("  install path: %s\n", config.TargetDirectory)

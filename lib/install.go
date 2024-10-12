@@ -35,9 +35,18 @@ func InstallPython(config Config, version Version, needLatest bool) error {
 	}
 
 	if needLatest {
+		var v_ *Version
+		if v__, ok_ := failedMinimumVersions[version.Minor]; ok_ {
+			v_ = &v__
+		} else {
+			v_ = nil
+		}
 		v := fetchedVersions[version.Minor].Back()
 		for v != nil {
-			if config.AllowPreRelease || v.Value.Pre == 0 {
+			isFailedVer := v_ != nil && v_.LessThanOrEqual(v.Value)
+			isAllowedVer := config.AllowPreRelease || v.Value.Pre == 0
+			if !isFailedVer && isAllowedVer {
+				fmt.Printf("install: %s\n", v.Value.String())
 				return doInstall(config, v, needLatest)
 			}
 			v = v.Prev()
