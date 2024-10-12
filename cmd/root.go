@@ -25,6 +25,7 @@ SOFTWARE.
 package cmd
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/hawk-tomy/pim/lib"
@@ -32,9 +33,15 @@ import (
 	"github.com/spf13/viper"
 )
 
+type flagConfigT struct {
+	AllowPreRelease bool
+	ForAllUser      bool
+}
+
 var (
-	cfgFile string
-	config  lib.Config
+	cfgFile    string
+	config     lib.Config
+	flagConfig flagConfigT
 )
 
 var rootCmd = &cobra.Command{
@@ -46,6 +53,17 @@ Install/Update python with select/latest version.
 You can install, update, show installed version.
 
 Now, only support python/cpython. (PR is welcome!)`,
+	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		if cmd.Flags().Changed("pre-release") {
+			config.AllowPreRelease = flagConfig.AllowPreRelease
+		}
+		if cmd.Flags().Changed("all-user") {
+			config.ForAllUser = flagConfig.ForAllUser
+		}
+		if lib.WithVerbose > 0 {
+			fmt.Printf("config: %+v\n", config)
+		}
+	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
 			return cmd.Help()
@@ -56,8 +74,7 @@ Now, only support python/cpython. (PR is welcome!)`,
 }
 
 func Execute() {
-	err := rootCmd.Execute()
-	if err != nil {
+	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
 	}
 }
@@ -67,10 +84,10 @@ func init() {
 
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.config/pim/config.toml)")
 
-	rootCmd.PersistentFlags().BoolP("pre-release", "p", false, "allow pre-release lib")
+	rootCmd.PersistentFlags().BoolVarP(&flagConfig.AllowPreRelease, "pre-release", "p", false, "allow pre-release lib")
 	cobra.CheckErr(viper.BindPFlag("AllowPreRelease", rootCmd.PersistentFlags().Lookup("pre-release")))
 
-	rootCmd.PersistentFlags().BoolP("all-user", "a", false, "install for all user")
+	rootCmd.PersistentFlags().BoolVarP(&flagConfig.ForAllUser, "all-user", "a", false, "install for all user")
 	cobra.CheckErr(viper.BindPFlag("ForAllUser", rootCmd.PersistentFlags().Lookup("all-user")))
 
 	rootCmd.PersistentFlags().StringP("target-directory", "t", "", "install target directory")
@@ -90,15 +107,14 @@ e.g. enable 'CompileAll' =>  "-o CompileAll=1" or "--additional-option=CompileAl
 	cobra.CheckErr(viper.BindPFlag("AdditionalInstallerOptions", rootCmd.PersistentFlags().Lookup("additional-options")))
 
 	rootCmd.PersistentFlags().BoolVarP(&lib.SkipConfirm, "force", "f", false, "skip confirmation")
+	rootCmd.PersistentFlags().CountVarP(&lib.WithVerbose, "verbose", "v", "verbose output. (experimental)")
 }
 
 func initConfig() {
-	if cfgFile != "" {
-		viper.SetConfigFile(cfgFile)
-	} else {
-		viper.SetConfigFile(lib.ConfigPath)
+	path := cfgFile
+	if cfgFile == "" {
+		path = lib.ConfigPath
 	}
 
-	cobra.CheckErr(viper.ReadInConfig())
-	cobra.CheckErr(viper.Unmarshal(&config))
+	cobra.CheckErr(lib.ReadConfig(path, &config))
 }

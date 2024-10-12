@@ -141,6 +141,9 @@ func buildInstallerArgument(config Config, additionalCmd ...string) []string {
 }
 
 func callInstaller(path string, args ...string) error {
+	if WithVerbose > 0 {
+		fmt.Printf("call: %s %s\n", path, strings.Join(args, " "))
+	}
 	cmd := exec.Command(path, args...)
 
 	var stdout strings.Builder

@@ -25,6 +25,7 @@ SOFTWARE.
 package lib
 
 import (
+	"github.com/pelletier/go-toml/v2"
 	"github.com/spf13/cobra"
 	"os"
 	"path/filepath"
@@ -38,8 +39,9 @@ type Config struct {
 }
 
 var (
-	configDir  string
-	ConfigPath string
+	configDir   string
+	ConfigPath  string
+	WithVerbose int
 )
 
 func init() {
@@ -62,4 +64,15 @@ func init() {
 	} else {
 		cobra.CheckErr(err)
 	}
+}
+
+func ReadConfig(path string, config *Config) error {
+	text, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	if err := toml.Unmarshal(text, config); err != nil {
+		return err
+	}
+	return nil
 }

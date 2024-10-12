@@ -47,10 +47,12 @@ var updateCmd = &cobra.Command{
 		if !isAllVer {
 			if len(args) != 1 {
 				fmt.Println("accept only 1 argument.")
+				return nil
 			}
 		} else {
 			if len(args) != 0 {
 				fmt.Println("accept no argument.")
+				return nil
 			}
 		}
 
